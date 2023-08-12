@@ -39,13 +39,14 @@ def send_notification(message):
 
 
 def merge_event_handler(data):
+    author = data['user']['name']
+    merge_request_title = data["object_attributes"]["title"]
+    source_branch = data["object_attributes"]["source_branch"]
+    target_branch = data["object_attributes"]["target_branch"]
+    url = data["object_attributes"]['url']
+
     match data['object_attributes']['action']:
         case 'open':
-            author = data['user']['name']
-            merge_request_title = data["object_attributes"]["title"]
-            source_branch = data["object_attributes"]["source_branch"]
-            target_branch = data["object_attributes"]["target_branch"]
-            url = data["object_attributes"]['url']
             send_notification(f"Merge Request Created: {merge_request_title}\n"
                               f"Author: {author}\n"
                               f"URL: {url}\n"
@@ -53,21 +54,31 @@ def merge_event_handler(data):
                               f"Target Branch: {target_branch}")
 
         case 'merge':
-            source_branch = data["object_attributes"]["source_branch"]
-            target_branch = data["object_attributes"]["target_branch"]
-            url = data["object_attributes"]['url']
-            send_notification(f"Merge Request Accepted\n"
+            send_notification(f"Merge Request Accepted: {merge_request_title}\n"
                               f"URL: {url}\n"
                               f"Source Branch: {source_branch}\n"
                               f"Target Branch: {target_branch}")
+        case 'close':
+            send_notification(f"Merge Request Closed: {merge_request_title}\n"
+                              f"URL: {url}")
 
 
 def push_event_handler(data):
     branch_name = data["ref"].split("/")[-1]
     event_author = data['user_name']
-    send_notification(f"Push Event\n"
-                      f"Author: {event_author}\n"
-                      f"Branch: {branch_name}")
+    empty_commit_hash = "0000000000000000000000000000000000000000"
+
+    if data['after'] == empty_commit_hash:
+        send_notification(f"Branch Deleted\n"
+                          f"Author: {event_author}\n"
+                          f"Branch: {branch_name}")
+        return
+
+    if data['before'] == empty_commit_hash:
+        send_notification(f"Branch Created\n"
+                          f"Author: {event_author}\n"
+                          f"Branch: {branch_name}")
+        return
 
 
 def pipeline_event_handler(data):
